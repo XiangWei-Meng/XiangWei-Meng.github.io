@@ -1,0 +1,211 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+<meta name="description" content="" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>微信 JS-SDK 分享问题填坑指南 | 进击的哈士奇</title>
+<link rel="shortcut icon" href="https://xiangwei-meng.github.io//favicon.ico?v=1557126503301">
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="stylesheet" href="https://xiangwei-meng.github.io//styles/main.css">
+
+<script src="https://cdn.bootcss.com/highlight.js/9.12.0/highlight.min.js"></script>
+<script src="https://cdn.bootcss.com/moment.js/2.23.0/moment.min.js"></script>
+
+
+  </head>
+  <body>
+    <div class="main">
+      <div class="main-content">
+        <div class="site-header">
+  <a href="https://xiangwei-meng.github.io/">
+  <img class="avatar" src="https://xiangwei-meng.github.io//images/avatar.png?v=1557126503301" alt="">
+  </a>
+  <h1 class="site-title">
+    进击的哈士奇
+  </h1>
+  <p class="site-description">
+    一只放浪不羁爱自由的狗子
+  </p>
+  <div class="menu-container">
+    
+      
+        <a href="/" class="menu">
+          首页
+        </a>
+      
+    
+      
+        <a href="/archives" class="menu">
+          归档
+        </a>
+      
+    
+      
+        <a href="/tags" class="menu">
+          标签
+        </a>
+      
+    
+      
+        <a href="/post/about" class="menu">
+          关于
+        </a>
+      
+    
+  </div>
+  <div class="social-container">
+    
+      
+    
+      
+    
+      
+    
+      
+    
+      
+    
+  </div>
+</div>
+
+      
+        <div class="post-detail">
+          <article class="post">
+            <h2 class="post-title">
+              微信 JS-SDK 分享问题填坑指南
+            </h2>
+            <div class="post-info">
+              <time class="post-time">
+                · 2018-05-06 ·
+              </time>
+              
+            </div>
+            
+              <div class="post-feature-image" style="background-image: url('https://images.unsplash.com/photo-1537364990320-070e7b7a8092?ixlib=rb-1.2.1&amp;auto=format&amp;fit=crop&amp;w=934&amp;q=80')">
+              </div>
+            
+            <div class="post-content">
+              <p><strong>参考文章：<a href="https://www.jianshu.com/p/9729fe3db211">微信二次分享失败问题解决</a></strong></p>
+<blockquote>
+<p><strong>以下内容，默认在拥有AppID、AppSecret且在后端工程师配合下进行。请确认准备条件再进行下面的操作</strong></p>
+</blockquote>
+<h3 id="一-html-页面加载所需-js">一、HTML 页面加载所需 JS</h3>
+<p>jquery-3.4.0、jweixin-1.4.0</p>
+<h3 id="二-get-请求获取服务端签名">二、 GET 请求获取服务端签名</h3>
+<pre><code>var appId, nonceStr, timestamp, signature;
+            var _url = encodeURIComponent(location.href.split('#')[0]);
+            $.ajax({
+            url: '这里填写服务端请求地址' +_url,  // 当前URL传值并获取动态签名
+                dataType: 'json',
+                type: 'get',
+                async:false,
+                success: function (data,status) {
+                    if (data != null &amp;&amp; data != &quot;&quot;) {
+                        var dataObj = eval(&quot;(&quot; + data + &quot;)&quot;); //转换为json对象 
+                        appId = dataObj.appid;
+                        nonceStr = dataObj.nonceStr;
+                        timestamp = dataObj.timestamp;
+                        signature = dataObj.signature;
+                        wxShare(); //这里是请求完成需要执行的分享函数名
+                    }
+                },
+            });
+</code></pre>
+<p>由于微信分享签名是动态操作，所以这一步的思路是获取到当前访问页面的 URL，发送给服务端进行实时签名。（注意，每访问一次就要生成一次签名，这一步不能省略，否则会导致二次分享失败。）</p>
+<p>另一个需要注意的地方是，需要服务端返回数据时声明文件格式，否则就需要前端把返回的数据格式转换成 json 对象，以上代码已包含此步骤，注意检查前后端变量名是否一致。</p>
+<h3 id="三-根据开发文档引入微信分享">三、根据开发文档，引入微信分享</h3>
+<pre><code>            function wxShare(){
+                wx.config({
+                    debug: false, // 调试模式
+                    appId: appId, // 必填，公众号的唯一标识
+                    timestamp: timestamp, // 必填，生成签名的时间戳
+                    nonceStr: nonceStr, // 必填，生成签名的随机串
+                    signature: signature,// 必填，签名，见附录1
+                    jsApiList: [
+                    'onMenuShareTimeline',//朋友圈1.0
+                    'onMenuShareAppMessage',//好友或群1.0
+                    'updateTimelineShareData',//朋友圈1.4
+                    'updateAppMessageShareData',//好友或群1.4
+                    ]
+                });
+                wx.ready(function () {
+                    //分享到朋友圈
+                    wx.updateTimelineShareData({
+                    title: ' ', // 分享标题
+                    link: location.href.split(&quot;#&quot;)[0], // 当前访问的动态链接
+                    imgUrl: ' ', // 分享图标
+                    success: function () {
+                    // 设置成功
+                        console.log(&quot;分享到朋友圈成功返回的信息为:&quot;, res);
+                        this.$Message.message(&quot;设置成功!&quot;);
+                        MtaH5.clickShare('wechat_moments');
+                    }
+                })
+
+                wx.onMenuShareTimeline({
+                    title: ' ', // 分享标题
+                    link: location.href.split(&quot;#&quot;)[0], // 当前访问的动态链接
+                    imgUrl: ' ', // 分享图标
+                    success: function () {
+                    // 用户点击了分享后执行的回调函数
+                    MtaH5.clickShare('wechat_moments');
+                    },
+                })
+
+                //分享给朋友或群
+                wx.updateAppMessageShareData({
+                    title: ' ', // 分享标题
+                    desc: ' ', // 分享描述
+                    link: location.href.split(&quot;#&quot;)[0], // 当前访问的动态链接
+                    imgUrl: ' ', // 分享图标
+                    success: function () {
+                    // 设置成功
+                        console.log(&quot;分享到朋友圈成功返回的信息为:&quot;, res);
+                        this.$Message.message(&quot;设置成功!&quot;);
+                        MtaH5.clickShare('wechat_friend');
+                    }
+                })
+                wx.onMenuShareAppMessage({
+                    title: ' ', // 分享标题
+                    desc: ' ', // 分享描述
+                    link: location.href.split(&quot;#&quot;)[0], // 当前访问的动态链接
+                    imgUrl: ' ', // 分享图标
+                    type: 'link', // 分享类型,music、video或link，不填默认为link
+                    dataUrl: '', // 如果type是music或video，则要提供数据链接，默认为空
+                    success: function () {
+                    // 用户点击了分享后执行的回调函数
+                    MtaH5.clickShare('wechat_friend');
+                    }
+                });
+                wx.error(function (res) {
+                console.log('验证失败返回的信息:', res);
+                });
+            });
+            }
+</code></pre>
+<p>以上分别接入了 1.0 和 1.4 版本的分享 SDK，其中 1.0 虽然即将废弃，但是为了兼容低版本的微信客户端，这里依旧保留。首先检查 wx.config 的部分，如果变量名和第二步一致就可以继续进行了，后面的部分只需要修改 title desc imgUrl 即可（这里注意驼峰语法），标题和摘要可以静态也可以动态获取，分享图标 Url 必须是 https 的图片链接地址，本地服务器的相对地址无效！</p>
+<h3 id="四-使用微信开发者工具调试">四、使用微信开发者工具调试</h3>
+<p><img src="https://cdn.heibandongcha.com/images/2019-05-06-070612.png" alt="">
+如图显示，表示签名验证成功</p>
+<p>这时候实机测试应该就没问题了，Over。</p>
+
+            </div>
+          </article>
+        </div>
+    
+        
+
+        
+    
+        <div class="site-footer">
+  
+</div>
+
+<script>
+  hljs.initHighlightingOnLoad()
+</script>
+
+      </div>
+    </div>
+  </body>
+</html>
